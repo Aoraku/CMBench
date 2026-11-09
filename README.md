@@ -106,6 +106,7 @@ Camera controls are not part of the public dataset. The LingBot runtime uses its
 | WorldKV | `worldkv` | Anchor-similarity compression + camera/query retrieval of stored chunks |
 | FutureForcing | `future_forcing` | Future-query-proxy scoring with value merging |
 | DensityKV | `densitykv` | Bounded bank with Soft-Riesz density-growth admission |
+| NoContext | `nocontext` | Lower bound: generation keeps none of the context KV |
 
 **Running on H200: see [`docs/HANDOFF_H200.md`](docs/HANDOFF_H200.md).** The last six methods were added for the rebuttal experiments; implementation notes and every deviation from the original papers are listed in [`docs/rebuttal_methods.md`](docs/rebuttal_methods.md).
 

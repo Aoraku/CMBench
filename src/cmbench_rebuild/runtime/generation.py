@@ -252,7 +252,7 @@ class LingBotGenerationEngine:
             head_map=self.head_map,
         )
         growable = self.options.kv_storage_mode == "auto_80gb" and policy.name in {
-            "random", "decoprune", "decoprune_hs", "contextfree", "snapkv", "future_forcing", "densitykv", "worldkv"}
+            "random", "decoprune", "decoprune_hs", "contextfree", "snapkv", "future_forcing", "densitykv", "worldkv", "nocontext"}
         growing_prefix = start_small(cache, method=policy.name,
             initial_tokens=self.options.initial_cache_frames * frame_tokens) if growable else None
         # Reserve CUDA/NCCL/allocator overhead outside the tensor budget, also

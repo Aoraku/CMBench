@@ -232,3 +232,21 @@ def test_sdpa_fallback_matches_masked_softmax():
     logits[1, :, :, 3:] = -float("inf")
     ref = torch.einsum("bhqk,bkhd->bqhd", torch.softmax(logits, dim=-1), v)
     assert torch.allclose(out.float(), ref, atol=1e-5)
+
+
+def test_nocontext_drops_all_context_before_generation():
+    cache = allocate_case_cache(GEOMETRY, method="nocontext", parameters={}, dtype=torch.float32, device="cpu")
+    runtime = _runtime("nocontext", {}, cache)
+    tokens = GEOMETRY.tokens_per_chunk
+    context_chunks = GEOMETRY.context_frames // GEOMETRY.chunk_size
+    for chunk in range(context_chunks):
+        runtime.before_clean(chunk, phase="context")
+        for layer in cache:
+            q = k = v = torch.randn(1, tokens, 2, 4)
+            cached_attention(q, k, v, cache=layer, current_start=chunk * tokens, frame_tokens=GEOMETRY.frame_tokens,
+                             local_attn_size=-1, sink_size=0, max_attention_size=10**9, attender=lambda a, b, c: a)
+        runtime.after_clean(chunk_idx=chunk, clean_x=torch.zeros(1), context_scores=None, phase="context")
+        assert len(_live_ids(cache[0])) == tokens  # only the newest context chunk during replay
+    runtime.begin_generation()
+    assert _live_ids(cache[0]) == []
+    assert active_history_token_head_units_before_current(cache, current_noisy_tokens=tokens) == 0

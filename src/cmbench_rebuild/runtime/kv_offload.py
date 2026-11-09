@@ -70,7 +70,7 @@ class KVStager:
                 self._stage(index + 1, tokens)
         output = call(working)
         cache = self.layers[index]
-        delta = self.delta_writeback and cache.get("method") in {"fullkv", "patchification", "random", "decoprune", "contextfree", "snapkv", "future_forcing", "densitykv"}
+        delta = self.delta_writeback and cache.get("method") in {"fullkv", "patchification", "random", "decoprune", "contextfree", "snapkv", "future_forcing", "densitykv", "nocontext"}
         for name in tuple(cache):
             if name not in working:
                 del cache[name]

@@ -4,6 +4,7 @@ from __future__ import annotations
 from .consistency_prune import SPEC as CONSISTENCY_PRUNE
 from .consistency_prune_hs import SPEC as CONSISTENCY_PRUNE_HS
 from .contextfree import SPEC as CONTEXTFREE
+from .nocontext import SPEC as NOCONTEXT
 from .densitykv import SPEC as DENSITYKV
 from .focused_forcing import SPEC as FOCUSED_FORCING
 from .future_forcing import SPEC as FUTURE_FORCING
@@ -33,6 +34,7 @@ _SPECS = (
     WORLDKV,
     FUTURE_FORCING,
     DENSITYKV,
+    NOCONTEXT,
 )
 REGISTRY = {spec.id: spec for spec in _SPECS}
 LEGACY_REGISTRY = {spec.legacy_id: spec for spec in _SPECS}
