@@ -58,11 +58,11 @@ RoPE re-indexing (`all_bands`) is applied to every method, as in Table 1.
 
 ## 4. Running on H200
 
-**Use one GPU per job** (`--gpus N`). This path is verified for all methods (H100 and B300).
-Multi-GPU sequence parallel works for DeCoPrune, ContextFree and SnapKV (2-GPU smoke
-passed); the other new methods are still being checked, so do not use `--gpus 0,1`
-for them yet. On a 141 GB H200 set `--gpu-memory-gib 130` so the KV cache stays
-on-device; KV that does not fit is kept in host memory automatically (slower but exact).
+**One GPU per job is the simplest and is verified for every method** (H100, H200, B300).
+Multi-GPU sequence parallel (`--gpus 0,1`) is also verified for all 14 methods (2-GPU
+smoke on H100 passed for DeCoPrune and all six new methods). On a 141 GB H200 set
+`--gpu-memory-gib 130` so the KV cache stays on-device; KV that does not fit is kept
+in host memory automatically (slower but exact).
 
 Run several single-GPU jobs side by side. Each job can take a list of methods and
 they run one after another. Jobs that share an `--output-root` must not start at the
@@ -90,13 +90,19 @@ Everything is resumable: re-running the same command skips tasks whose
 `continuation.mp4` and `metadata.json` exist. A task that failed part-way is moved to
 `<task>/seed2.failed-<time>` and regenerated.
 
-**Timing reference** (one task, full 60 s context, single GPU):
-DeCoPrune ≈ 5.5 min on B300. Expect roughly 8–12 min on H200 for methods that prune
-the cache (Random, ContextFree, SnapKV, FutureForcing, DensityKV, WorldKV).
-ContextFree runs one extra no-cache probe per chunk, so it is a little slower.
+**Timing reference** (one task, full 60 s context, single GPU, measured):
+
+| Method | H200 (1 GPU) | B300 (1 GPU) |
+|---|---|---|
+| DeCoPrune | — | 5.5 min |
+| FullKV | — | ~18 min |
+| FutureForcing | 11–12 min | |
+| ContextFree | 15 min (extra no-cache probe per chunk) | 6 min |
+| WorldKV | 22 min (retrieval gathers stored chunks every call) | |
+
 FocusedForcing keeps the full history (sparse attention, no eviction), so its KV is
-FullKV-sized: on one H200 part of it lives in host memory, making it the slowest
-method. Give it its own GPU, or several GPUs with split `--cases`.
+FullKV-sized; expect it to be the slowest together with WorldKV. For the 116-task run,
+split these two over several GPUs with disjoint `--cases` lists.
 
 ## 5. Outputs
 

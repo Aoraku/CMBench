@@ -125,7 +125,7 @@ python tools/run_benchmark.py --methods decoprune snapkv contextfree --seeds 2 -
   --benchmark-root data/CMBench --model-root models --output-root runs/cmbench
 ```
 
-**Verified configurations (rebuttal methods).** One generation job per GPU (`--gpus 0`) is verified end to end for all methods on H100 80 GB and B300; on a 141 GB H200 one GPU per job is recommended, and several single-GPU jobs can run side by side (`--cases` splits the task list). Multi-GPU sequence parallel (`--gpus 0,1,...`) is the path the paper used for the original methods; for the six rebuttal methods it is still being validated.
+**Verified configurations (rebuttal methods).** One generation job per GPU (`--gpus 0`) is verified end to end for all methods on H100 80 GB and B300; on a 141 GB H200 one GPU per job is recommended, and several single-GPU jobs can run side by side (`--cases` splits the task list). Multi-GPU sequence parallel (`--gpus 0,1,...`) is verified for all methods as well (2-GPU smoke).
 
 `ffmpeg` and `ffprobe` must be on `PATH` for post-processing and evaluation (a static build such as https://johnvansickle.com/ffmpeg/ works when no system package is available).
 
