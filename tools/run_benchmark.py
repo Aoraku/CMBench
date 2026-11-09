@@ -75,6 +75,8 @@ def run_generation(args, method: str, config_path: Path, case_id: str, seed: int
     if args.smoke:
         command += ["--context-latent-limit", str(args.smoke_context_frames), "--output-latent-frames", str(args.smoke_output_frames)]
     env = {**os.environ, "CUDA_VISIBLE_DEVICES": args.gpus, "PYTHONPATH": str(ROOT / "src") + os.pathsep + os.environ.get("PYTHONPATH", "")}
+    # torchrun defaults OMP_NUM_THREADS to 1, which makes the CPU-side T5 prompt encoder very slow.
+    env.setdefault("OMP_NUM_THREADS", "16")
     started = time.time()
     with output.with_name(f"{output.name}.generation.log").open("w") as log:
         completed = subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
