@@ -1,0 +1,7 @@
+{
+  "name": "lingbot-world-v2",
+  "upstream": "https://huggingface.co/robbyant/lingbot-world-v2-14b-causal-fast",
+  "note": "Inference source vendored under src/wan; subtree hash pins the exact files the runtime loads.",
+  "subtree_sha256": "42c8491ed128bbd6b07d6ddf3dd069340f14a5fdc868885ed9f6ccf6158cc814",
+  "file_count": 23
+}

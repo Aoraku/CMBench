@@ -43,6 +43,9 @@ PipelineFactory = Callable[[Path, LingBotLoadOptions], Any]
 
 
 def _official_pipeline_factory(checkpoint: Path, options: LingBotLoadOptions) -> Any:
+    from .attention_fallback import install_if_needed
+
+    install_if_needed()
     from wan.configs import i2v_A14B
     import wan.image2video as image2video
 
