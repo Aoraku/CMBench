@@ -552,7 +552,13 @@ class VisualScorer:
         image = to_pil_bgr(frame_bgr)
         nested_texts = [texts]
         with torch.inference_mode():
-            inputs = self.owl_processor(text=nested_texts, images=image, return_tensors="pt")
+            # OWL-ViT has a fixed text-position capacity. Rich benchmark labels
+            # can exceed it, and current tokenizers do not truncate by default.
+            inputs = self.owl_processor(
+                text=nested_texts, images=image, return_tensors="pt",
+                padding="max_length", truncation=True,
+                max_length=int(self.owl_model.config.text_config.max_position_embeddings),
+            )
             inputs = {key: value.to(self.device) if hasattr(value, "to") else value for key, value in inputs.items()}
             outputs = self.owl_model(**inputs)
             target_sizes = torch.tensor([image.size[::-1]], device=self.device)
