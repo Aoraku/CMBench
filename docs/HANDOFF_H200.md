@@ -50,7 +50,7 @@ PyTorch SDPA automatically.
 | WorldKV (new) | `worldkv` | `retrieved_chunks=14`, camera retrieval | 0.854 |
 | FutureForcing (new) | `future_forcing` | `keep_ratio=0.10` | 0.857 |
 | DensityKV (new) | `densitykv` | **being recalibrated — start this method last** | full-context check gave 0.92 with `growth_limit=2.0` (the bank never fills); a new default is being pushed |
-| NoContext (Table 3 lower bound, new) | `nocontext` | drops every context token (incl. sink) when generation starts; generated chunks kept | ≈0.99 |
+| NoContext (Table 3 lower bound, new) — **please include** | `nocontext` | drops every context token (incl. sink) when generation starts; generated chunks kept | 0.976 (measured) |
 
 All defaults are already calibrated: no `--method-params` are needed. To change a
 budget, pass e.g. `--method-params '{"snapkv": {"keep_ratio": 0.12}}'` and check the
@@ -126,7 +126,8 @@ time, rerun the same command (finished tasks are skipped, so it only re-summariz
 1. `seqPR` in `$R/runs/<method>/<task>/seed2/seq_pr_metrics.json` is close to the expected value above. DensityKV in particular is content dependent; if it drifts far from ≈0.855, tune `max_entries`.
 2. For new methods, `events.rank0.jsonl` contains `rebuttal_chunk_finalized` events (WorldKV, SnapKV, FutureForcing, DensityKV) or `consistency_physical_compaction` (ContextFree, Random).
 3. WorldKV: `result.json` → `generation.online_policy.rebuttal.visible_subset.retrieval.mode` shows `camera` (pose retrieval) or `query` (fallback when the context camera could not be estimated); both are expected.
-4. Reference numbers from our smoke test (2 tasks, seed 2, B300): FullKV DINO 0.924 / 0.825 and DeCoPrune 0.798 / 0.609 on `syn_001_reappear_01` / `_02`; DeCoPrune seqPR 0.863 / 0.866.
+4. NoContext is cheap (only one chunk of cache) and is the reference that shows how much a method gains from remembered context; on our two smoke tasks it scored 0.796 / 0.570 DINO, close to DeCoPrune, so the full 116-task comparison against it matters.
+5. Reference numbers from our smoke test (2 tasks, seed 2, B300): FullKV DINO 0.924 / 0.825 and DeCoPrune 0.798 / 0.609 on `syn_001_reappear_01` / `_02`; DeCoPrune seqPR 0.863 / 0.866.
 
 ## 7. Known pitfalls (already fixed in `main`)
 
