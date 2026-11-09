@@ -102,7 +102,7 @@ class RebuttalPolicy:
         needs_attention = self.name in {"snapkv", "future_forcing"}
         for layer in cache:
             device = layer["k"].device
-            pin = device.type == "cpu"
+            pin = device.type == "cpu" and torch.cuda.is_available()
             if needs_attention:
                 layer["rb_attn_by_source"] = torch.zeros(self.total_tokens, dtype=torch.float32, device=device, pin_memory=pin)
             if self.name == "future_forcing":

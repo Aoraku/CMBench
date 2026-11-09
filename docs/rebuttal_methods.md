@@ -4,7 +4,21 @@ All six methods run inside the same LingBot World v2 runtime as DeCoPrune, with 
 sink chunk, the same dense recent window (`local_window_chunks=1`), the same RoPE
 re-indexing at the context/generation boundary, and the same seqPR accounting
 (historical KV token positions visible to each head, Eq. 4 of the paper).
-Budgets are set to match DeCoPrune's pruning ratio on CMBench (≈85%).
+Budgets are set to match DeCoPrune's pruning ratio on CMBench (85.43% in the paper).
+`tools/simulate_pr.py` replays the cache lifecycle at the real geometry (244 context + 16 generated latent
+frames, 1,560 tokens per frame) and gives the exact seqPR of every content-independent budget:
+
+| Method | Budget (config default) | seqPR at full context |
+|---|---|---|
+| `contextfree` | keeps DeCoPrune's per-chunk count | identical to DeCoPrune |
+| `snapkv` | `keep_ratio=0.10` | 0.857 |
+| `future_forcing` | `keep_ratio=0.10` | 0.857 |
+| `worldkv` | `retrieved_chunks=14` | 0.854 |
+| `focused_forcing` | `frame_budget=36` frames | 0.856 |
+| `densitykv` | `max_entries=37500` per layer | content dependent; ≈0.855 once the bank is full |
+
+Evaluation: the OWL-ViT / SAM 2 / DINOv2 evaluator was frozen with transformers 5.12.1; run it from that
+environment (`--eval-python`).
 
 | Method | Source | What is faithful | Deviations (and why) |
 |---|---|---|---|

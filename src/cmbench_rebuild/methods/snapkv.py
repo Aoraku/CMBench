@@ -16,7 +16,7 @@ SPEC = MethodSpec(
     "snapkv_reindex",
     "attention_snapkv",
     {
-        "keep_ratio": 0.146,
+        "keep_ratio": 0.10,
         "query_samples": 256,
         "pool_kernel": 3,
         "local_window_chunks": 1,

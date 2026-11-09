@@ -4,7 +4,7 @@
   "dataset_version": "Aoraku/CMBench",
   "method": "worldkv",
   "method_params": {
-    "retrieved_chunks": 15,
+    "retrieved_chunks": 14,
     "retrieval": "camera"
   },
   "protocol": "cmbench-116",

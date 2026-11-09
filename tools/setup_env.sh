@@ -12,3 +12,10 @@ pip install accelerate "diffusers>=0.31" easydict einops ftfy imageio imageio-ff
 pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.6cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
 pip install -e .
 python -c "import torch, flash_attn; print('torch', torch.__version__, 'flash-attn', flash_attn.__version__)"
+
+# The OWL-ViT / SAM 2 / DINOv2 evaluator was frozen with transformers 5.12.1; keep it in its own venv
+# and pass --eval-python .venv-eval/bin/python to tools/run_benchmark.py.
+python3 -m venv .venv-eval
+.venv-eval/bin/pip install --upgrade pip
+.venv-eval/bin/pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+.venv-eval/bin/pip install transformers==5.12.1 opencv-python-headless pyyaml pillow numpy scipy safetensors imageio imageio-ffmpeg

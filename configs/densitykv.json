@@ -4,7 +4,7 @@
   "dataset_version": "Aoraku/CMBench",
   "method": "densitykv",
   "method_params": {
-    "max_entries": 54000
+    "max_entries": 37500
   },
   "protocol": "cmbench-116",
   "request_file": "runs/inputs/requests.jsonl",

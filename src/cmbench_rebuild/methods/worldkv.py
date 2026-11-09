@@ -21,7 +21,7 @@ SPEC = MethodSpec(
     "worldkv_retrieval",
     {
         "nonanchor_keep_ratio": 0.25,
-        "retrieved_chunks": 15,
+        "retrieved_chunks": 14,
         "retrieval": "camera",
         "sink_chunks": 1,
         "recent_chunks": 1,

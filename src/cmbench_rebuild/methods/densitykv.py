@@ -16,7 +16,7 @@ SPEC = MethodSpec(
     "densitykv_reindex",
     "density_bank",
     {
-        "max_entries": 54000,
+        "max_entries": 37500,
         "density_scale": 8.0,
         "riesz_power": 2.0,
         "riesz_eps": 1.0,

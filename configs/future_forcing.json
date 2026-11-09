@@ -4,7 +4,7 @@
   "dataset_version": "Aoraku/CMBench",
   "method": "future_forcing",
   "method_params": {
-    "keep_ratio": 0.146
+    "keep_ratio": 0.1
   },
   "protocol": "cmbench-116",
   "request_file": "runs/inputs/requests.jsonl",

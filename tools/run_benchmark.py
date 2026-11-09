@@ -95,7 +95,7 @@ def evaluate(args, method: str, seed: int, case_dirs: list[Path]) -> None:
         batch = pending[start:start + args.eval_batch]
         results = run_official_dino_batch(
             case_dirs=batch, benchmark_root=args.benchmark_root, metadata=metadata, annotations=metadata,
-            evaluator=EVALUATOR, python=Path(sys.executable),
+            evaluator=EVALUATOR, python=Path(args.eval_python) if args.eval_python else Path(sys.executable),
             owl_model=model_root / "google" / "owlvit-base-patch32",
             sam_model=model_root / "facebook" / "sam2.1-hiera-large",
             dino_model=model_root / "facebook" / "dinov2-base",
@@ -175,6 +175,7 @@ def main() -> None:
     parser.add_argument("--output-latent-frames", type=int, default=16)
     parser.add_argument("--gpu-memory-gib", type=float, default=80.0, help="per-GPU budget for weights+KV; e.g. 250 on an idle B300, less when sharing a card")
     parser.add_argument("--skip-eval", action="store_true")
+    parser.add_argument("--eval-python", help="interpreter of the evaluator environment (transformers==5.12.1, see tools/setup_env.sh)")
     parser.add_argument("--eval-batch", type=int, default=16)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--smoke-context-frames", type=int, default=24)

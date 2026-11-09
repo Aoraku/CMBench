@@ -16,7 +16,7 @@ SPEC = MethodSpec(
     "future_forcing_reindex",
     "attention_future_forcing",
     {
-        "keep_ratio": 0.146,
+        "keep_ratio": 0.10,
         "horizon": 6,
         "future_weight": 0.5,
         "merge": True,
