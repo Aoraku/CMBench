@@ -549,18 +549,6 @@ class OnlinePolicyRuntime:
             elif str(self.cache[0].get("cache_mode")) == "physical_dummyforcing":
                 self._dummy_compact(int(chunk_idx), phase=phase)
 
-    def _drop_source_range(self, start: int, stop: int) -> None:
-        import torch
-        from .compaction import drop_layer_source_ids
-
-        ids = torch.arange(int(start), int(stop), dtype=torch.long)
-        for layer in self.cache:
-            drop_layer_source_ids(layer, ids)
-        event = {"event": "nocontext_drop", "source_start": int(start), "source_stop": int(stop),
-                 "live_tokens_after": int(self.cache[0]["local_end_index"].item())}
-        self.events.append(event)
-        self.emit(event)
-
     def _consistency_mask(self, record: ConsistencyRecord) -> Any:
         import torch
 

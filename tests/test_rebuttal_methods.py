@@ -233,12 +233,3 @@ def test_sdpa_fallback_matches_masked_softmax():
     ref = torch.einsum("bhqk,bkhd->bqhd", torch.softmax(logits, dim=-1), v)
     assert torch.allclose(out.float(), ref, atol=1e-5)
 
-
-def test_nocontext_is_registered_and_keeps_no_prefill_policy_state():
-    cache = allocate_case_cache(GEOMETRY, method="nocontext", parameters={}, dtype=torch.float32, device="cpu")
-    runtime = _runtime("nocontext", {}, cache)
-    assert runtime.rebuttal is None and not runtime.is_consistency
-    # The generation engine skips every context chunk except the last one; the policy
-    # itself never removes tokens, so whatever is written stays in the cache.
-    runtime.begin_generation()
-    assert _live_ids(cache[0]) == []
