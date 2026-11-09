@@ -133,3 +133,25 @@ def resize_live_banks(cache_layers: Iterable[dict[str, Any]], *, capacity: int, 
                 if name.endswith("tpos") or name.endswith("source_ids"):
                     resized[:, live:].fill_(-1)
                 cache[name] = resized
+
+
+def drop_layer_source_ids(cache: dict[str, Any], rejected_ids: Any, *, prefix: str = "") -> int:
+    """Remove explicit source identities from ONE layer, packing only the affected suffix.
+
+    Unlike :func:`keep_global_source_ids` this does not require every layer to
+    retain the same token set, which per-layer selection policies need.
+    """
+    import torch
+
+    source_name = f"{prefix}source_ids" if prefix else "source_ids"
+    end_name = f"{prefix}local_end_index" if prefix else "local_end_index"
+    if rejected_ids is None or int(rejected_ids.numel()) == 0:
+        return 0
+    live = _int(cache[end_name])
+    physical = cache[source_name][0, :live]
+    drop = torch.isin(physical, rejected_ids.to(device=physical.device, dtype=torch.long))
+    positions = drop.nonzero(as_tuple=False)
+    if not positions.numel():
+        return 0
+    start = int(positions[0, 0].item())
+    return compact_range([cache], token_start=start, keep_mask=~drop[start:], prefix=prefix)

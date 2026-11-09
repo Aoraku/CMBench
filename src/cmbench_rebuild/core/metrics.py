@@ -26,6 +26,10 @@ def active_history_token_head_units_before_current(kv_cache: Sequence[dict[str, 
         raise ValueError("current_noisy_tokens must be non-negative")
     total = 0
     for cache in kv_cache:
+        if cache.get("rb_visible_history_units") is not None:
+            # Visible-subset policies store more history than one attention call reads.
+            total += int(cache["rb_visible_history_units"])
+            continue
         mode = cache.get("cache_mode")
         if mode in {"physical_head_split", "physical_forcingkv"}:
             prefixes = ("static", "dynamic")

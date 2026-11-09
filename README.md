@@ -100,10 +100,32 @@ Camera controls are not part of the public dataset. The LingBot runtime uses its
 | ForcingKV | `forcingkv` | Head-dependent cache policy |
 | Streaming | `streaming` | Sink and recent-window retention |
 | DummyForcing | `dummy_forcing` | Fixed history-window baseline |
+| ContextFree | `contextfree` | DeCoPrune's discrepancy scored **without** the history cache (control) |
+| SnapKV | `snapkv` | Attention-based selector (SnapKV/H2O style), per layer |
+| FocusedForcing | `focused_forcing` | Sparse frame attention: attention + diversity score per query frame and head |
+| WorldKV | `worldkv` | Anchor-similarity compression + camera/query retrieval of stored chunks |
+| FutureForcing | `future_forcing` | Future-query-proxy scoring with value merging |
+| DensityKV | `densitykv` | Bounded bank with Soft-Riesz density-growth admission |
+
+The last six methods were added for the rebuttal experiments; implementation notes and every deviation from the original papers are listed in [`docs/rebuttal_methods.md`](docs/rebuttal_methods.md).
 
 Start from [`configs/decoprune.json`](configs/decoprune.json). Set `checkpoint` to your model directory and `request_file` to the prepared JSONL. The example specifies probe index `2` for both the observed prefix and generated continuation, and threshold `0.10`.
 
 The four-step FlowUniPC schedule with shift 5 is `(999, 957, 899, 702)`. Zero-based denoising indices `1`, `2`, and `3` correspond to noise timesteps `957`, `899`, and `702`. The default output configuration is 832 × 480 at 16 FPS with four latent frames per chunk. RoPE re-indexing is configured through `rope_reindex` and should be held fixed across a method comparison. DeCoPrune-HS and ForcingKV require an explicit `head_map_file`.
+
+## One-command run
+
+`tools/run_benchmark.py` prepares requests, generates every task (resumable), runs the bundled OWL/SAM/DINO evaluator (`third_party/cmbench_evaluator`) and writes `summary/table.md` (mean DINO with a 95% bootstrap CI over tasks, top-5-frame DINO, and seqPR).
+
+```bash
+bash tools/setup_env.sh            # venv + PyTorch + flash-attn
+bash tools/download_assets.sh      # checkpoint, CMBench, OWL-ViT / SAM 2.1 / DINOv2
+python tools/run_benchmark.py --methods decoprune snapkv contextfree --seeds 2 --gpus 0 \
+  --checkpoint models/lingbot-world-v2-14b-causal-fast \
+  --benchmark-root data/CMBench --model-root models --output-root runs/cmbench
+```
+
+A single 80 GB GPU works: the default `auto_80gb` storage mode keeps the KV cache layers that do not fit in host memory and streams them per layer. Use `--gpus 0,1,2,3` for one 4-GPU sequence-parallel job. Add `--smoke` for a short functional check (diagnostic output, not a benchmark number).
 
 ## Generation
 

@@ -225,10 +225,16 @@ def cached_attention(
     sink_size: int,
     max_attention_size: int,
     attender: Attender,
+    aux: dict[str, Any] | None = None,
 ) -> Any:
     """Write one RoPE-applied K/V chunk and attend to the physical live state."""
     import torch
 
+    if cache.get("rb_visible") is not None:
+        from .rebuttal_attention import visible_subset_attention
+
+        return visible_subset_attention(query, key, value, cache=cache, current_start=current_start,
+                                        frame_tokens=frame_tokens, attender=attender)
     first_key = next(
         item
         for name, item in cache.items()
@@ -249,6 +255,7 @@ def cached_attention(
                 sink_size=sink_size,
                 max_attention_size=max_attention_size,
                 attender=attender,
+                aux=aux,
             ),
         )
     sequence_tokens = int(query.shape[1])
@@ -341,6 +348,10 @@ def cached_attention(
             sequence_tokens=sequence_tokens,
             current_end=current_end,
         )
+        if cache.get("rb_capture"):
+            from .rebuttal_policies import capture_attention_statistics
+
+            capture_attention_statistics(cache, query, left=left, local_start=local_start, local_end=local_end, aux=aux)
         output = attender(query, live_key, live_value)
         cache["local_end_index"].fill_(local_end)
 

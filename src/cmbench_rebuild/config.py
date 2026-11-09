@@ -70,9 +70,17 @@ class RunConfig:
         params = data["method_params"]
         if spec.id == "streaming" and not (0 <= int(params["sink_size"]) < int(params["local_attn_size"])):
             raise ValueError("streaming requires 0 <= sink_size < local_attn_size")
-        if spec.id in {"random", "decoprune", "decoprune_hs"}:
+        if spec.id in {"random", "decoprune", "decoprune_hs", "contextfree"}:
             if not 0 <= int(params["step_index"]) <= 3 or not 0.0 <= float(params["threshold"]) <= 1.0:
                 raise ValueError("consistency methods require step_index in [0,3] and threshold in [0,1]")
+        if spec.id in {"snapkv", "future_forcing"} and not 0.0 < float(params["keep_ratio"]) <= 1.0:
+            raise ValueError(f"{spec.id} keep_ratio must be in (0, 1]")
+        if spec.id == "worldkv" and (params["retrieval"] not in {"camera", "query"} or int(params["retrieved_chunks"]) < 0):
+            raise ValueError("worldkv retrieval must be camera/query with non-negative retrieved_chunks")
+        if spec.id == "densitykv" and int(params["max_entries"]) <= 0:
+            raise ValueError("densitykv max_entries must be positive")
+        if spec.id == "focused_forcing" and int(params["frame_budget"]) < int(params["sink_frames"]) + int(params["recent_frames"]):
+            raise ValueError("focused_forcing frame_budget must cover its reserved sink and recent frames")
         heterogeneous = spec.id in {"forcingkv", "decoprune_hs"}
         if heterogeneous and not data["head_map_file"]:
             raise ValueError(f"{spec.id} requires an explicit head_map_file")

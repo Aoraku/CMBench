@@ -183,7 +183,7 @@ def allocate_case_cache(
         )
     elif method == "patchification":
         layers = _dense_layers(torch, geometry, context_tokens, dtype=dtype, device=device)
-    elif method in {"random", "decoprune"}:
+    elif method in {"random", "decoprune", "contextfree", "snapkv", "future_forcing", "densitykv", "worldkv", "focused_forcing"}:
         capacity = total_tokens
         layers = _dense_layers(torch, geometry, capacity, dtype=dtype, device=device, mode="physical_compacted")
     else:

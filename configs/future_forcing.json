@@ -1,0 +1,15 @@
+{
+  "case_id": "syn_001_reappear_01",
+  "checkpoint": "/path/to/lingbot-world-v2-14b-causal-fast",
+  "dataset_version": "Aoraku/CMBench",
+  "method": "future_forcing",
+  "method_params": {
+    "keep_ratio": 0.146
+  },
+  "protocol": "cmbench-116",
+  "request_file": "runs/inputs/requests.jsonl",
+  "rope_reindex": {
+    "mode": "all_bands"
+  },
+  "seed": 2
+}

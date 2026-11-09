@@ -21,6 +21,12 @@ _METHOD_ALIASES = {
     "decoprune_hs": "consistency_prune_hs",
     "dummy_forcing": "dummy_forcing",
     "patchification": "patchification",
+    "contextfree": "contextfree",
+    "snapkv": "snapkv",
+    "focused_forcing": "focused_forcing",
+    "worldkv": "worldkv",
+    "future_forcing": "future_forcing",
+    "densitykv": "densitykv",
 }
 
 

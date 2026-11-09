@@ -20,6 +20,7 @@ from ..methods.selectors import (
 from ..methods.torch_kernels import forcingkv_scores_from_moments, patchification_block_moments
 from .compaction import compact_static_predecessor, keep_global_source_ids
 from .kv_cache import cache_banks
+from .rebuttal_policies import REBUTTAL_METHODS, RebuttalPolicy
 
 
 def _int(value: Any) -> int:
@@ -132,6 +133,7 @@ class ConsistencyRecord:
     scores: Any
     source: str
     applied: bool = False
+    reference_scores: Any = None
 
 
 class OnlinePolicyRuntime:
@@ -187,10 +189,23 @@ class OnlinePolicyRuntime:
                 raise ValueError("consistency local_window_chunks must be non-negative")
         if self.name == "dummy_forcing":
             self._configure_dummy_warmup()
+        self._contextfree_reference = None
+        self._generation_reference = None
+        self.rebuttal = RebuttalPolicy(
+            cache=cache, geometry=geometry, name=self.name, parameters=self.parameters,
+            request=request, pipeline=pipeline, emit=emit,
+        ) if self.name in REBUTTAL_METHODS else None
+        self._rope_plan = None
+
+    def attach_case_inputs(self, *, context_payload: Any, camera: Any, rope_plan: Any = None) -> None:
+        """Give policies that need them the observed context pixels and camera plan."""
+        self._rope_plan = rope_plan
+        if self.rebuttal is not None and self.rebuttal.visible is not None:
+            self.rebuttal.visible.attach_case_inputs(context_payload=context_payload, camera=camera)
 
     @property
     def is_consistency(self) -> bool:
-        return self.name in {"random", "decoprune", "decoprune_hs"}
+        return self.name in {"random", "decoprune", "decoprune_hs", "contextfree"}
 
     @property
     def consistency_prefix(self) -> str:
@@ -343,6 +358,8 @@ class OnlinePolicyRuntime:
         self.emit(event)
 
     def prepare_chunk(self, chunk_idx: int) -> None:
+        if self.rebuttal is not None:
+            self.rebuttal.prepare_chunk(int(chunk_idx))
         if self.name == "dummy_forcing" and str(self.cache[0].get("cache_mode")) == "dummyforcing_warmup" and int(chunk_idx) == 2:
             for cache in self.cache:
                 cache["dummyforcing_score_pending"] = True
@@ -407,6 +424,10 @@ class OnlinePolicyRuntime:
             }
             self.events.append(row)
             self.emit(row)
+            if self.name == "contextfree":
+                # Budget matching: the with-cache scores fix how many tokens DeCoPrune would keep.
+                self._contextfree_reference = with_scores.detach()
+                return without_scores.detach()
             return with_scores.detach()
         finally:
             restore_cache_cursors(self.cache, cursors)
@@ -417,11 +438,15 @@ class OnlinePolicyRuntime:
         return token_scores(predicted, target, score_type=self.score_type)
 
     def before_clean(self, chunk_idx: int, *, phase: str) -> None:
+        if self.rebuttal is not None and not (phase == "generation" and self._append_only_generation):
+            self.rebuttal.before_clean(int(chunk_idx), phase=phase)
         if self.is_consistency and not (phase == "generation" and self._append_only_generation) and not (phase == "context" and self.matched_context_policy == "patchification_q0"):
             self._compact_consistency(next_chunk_idx=int(chunk_idx) + 1)
 
     def begin_generation(self) -> None:
         """Discard context-only consistency records after a shared q0 selection."""
+        if self.rebuttal is not None and self.rebuttal.visible is not None and self._rope_plan is not None:
+            self.rebuttal.visible.on_rope_reindex(plan=self._rope_plan, freqs=self.pipeline.model.freqs)
         if self.matched_context_policy != "patchification_q0" or not self.is_consistency:
             return
         context_records = sum(record.source == "context" for record in self.records)
@@ -437,6 +462,21 @@ class OnlinePolicyRuntime:
     def capture_generation_prediction(self, step_index: int, x0: Any) -> None:
         if self.is_consistency and not self._append_only_generation and int(step_index) == self.generation_step_index:
             self._generation_prediction = x0.detach()
+
+    def generation_probe(self, *, step_index: int, noisy: Any, step: Any, kwargs: dict[str, Any]) -> None:
+        """Context-free control: replace the probe prediction by a no-cache prediction."""
+        if self.name != "contextfree" or self._append_only_generation or int(step_index) != self.generation_step_index:
+            return
+        if self._isolated_probe_cache is None:
+            self._isolated_probe_cache = isolated_probe_cache(self.cache, capacity_tokens=int(self.geometry.tokens_per_chunk))
+        empty_physical_cache_at(self._isolated_probe_cache, int(kwargs["current_start"]))
+        self._generation_reference = self._generation_prediction
+        probe_kwargs = dict(kwargs)
+        probe_kwargs["kv_cache"] = self._isolated_probe_cache
+        probe_kwargs["cross_attn_first_call"] = False
+        flow = self.pipeline.model(x=[noisy], t=step.reshape(1).to(noisy.device), **probe_kwargs)[0]
+        self._generation_prediction = self.pipeline._convert_flow_pred_to_x0(flow, noisy, step, self.pipeline.scheduler).detach()
+        self.probe_calls += 1
 
     def capture_model_state(self) -> None:
         """Persist transient attention evidence at the model-call boundary."""
@@ -487,9 +527,18 @@ class OnlinePolicyRuntime:
                 import torch
 
                 ids = torch.arange(start, start + int(self.geometry.tokens_per_chunk), device=clean_x.device, dtype=torch.long)
-                self.records.append(ConsistencyRecord(int(chunk_idx), ids, scores.detach(), phase))
+                reference = None
+                if self.name == "contextfree":
+                    if phase == "generation" and self._generation_reference is not None:
+                        reference = self._scores(self._generation_reference, clean_x).detach()
+                    elif phase == "context":
+                        reference = self._contextfree_reference
+                    self._contextfree_reference = self._generation_reference = None
+                self.records.append(ConsistencyRecord(int(chunk_idx), ids, scores.detach(), phase, reference_scores=reference))
         if phase == "generation" and self._append_only_generation:
             return
+        if self.rebuttal is not None:
+            self.rebuttal.after_clean(int(chunk_idx), phase=phase)
         if self.name == "forcingkv":
             self._forcingkv_compact(int(chunk_idx), phase=phase)
         elif self.name == "patchification" and bool(self.parameters.get("update_each_chunk", False)):
@@ -522,6 +571,17 @@ class OnlinePolicyRuntime:
             min_keep_per_block=self.min_keep_per_block,
             floor_threshold=self.spatial_floor_threshold,
         )
+        if self.name == "contextfree" and record.reference_scores is not None:
+            # Keep exactly DeCoPrune's count for this chunk, ranked by the context-free score.
+            matched = sum(build_consistency_mask(
+                record.reference_scores.detach().float().cpu().tolist(), threshold=self.threshold, score_type=self.score_type,
+                frames=int(self.geometry.chunk_size), height=height, width=width,
+                min_keep_per_block=self.min_keep_per_block, floor_threshold=self.spatial_floor_threshold,
+            ))
+            order = torch.argsort(record.scores.detach().float(), descending=True, stable=True)
+            mask = torch.zeros(len(reference), dtype=torch.bool, device=record.source_ids.device)
+            mask[order[:matched].to(mask.device)] = True
+            return mask
         if self.name == "random":
             chosen = deterministic_random_indices(
                 candidate_count=len(reference),
@@ -696,4 +756,5 @@ class OnlinePolicyRuntime:
             "unapplied_consistency_records": unapplied,
             "forcingkv_selected_patches": len(self.forcing_patch_starts),
             "patchification_online_candidates": len((self._patchification_state or {}).get("candidate_scores", {})),
+            "rebuttal": self.rebuttal.diagnostics() if self.rebuttal is not None else None,
         }

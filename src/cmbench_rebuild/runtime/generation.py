@@ -252,7 +252,7 @@ class LingBotGenerationEngine:
             head_map=self.head_map,
         )
         growable = self.options.kv_storage_mode == "auto_80gb" and policy.name in {
-            "random", "decoprune", "decoprune_hs"}
+            "random", "decoprune", "decoprune_hs", "contextfree", "snapkv", "future_forcing", "densitykv", "worldkv"}
         growing_prefix = start_small(cache, method=policy.name,
             initial_tokens=self.options.initial_cache_frames * frame_tokens) if growable else None
         # Reserve CUDA/NCCL/allocator overhead outside the tensor budget, also
@@ -315,6 +315,7 @@ class LingBotGenerationEngine:
             timesteps=timesteps,
             emit=emit,
         )
+        online.attach_case_inputs(context_payload=context.payload, camera=camera, rope_plan=rope_plan)
         generation_kv_policy = str(request.generation.get("generation_kv_policy", self.options.generation_kv_policy))
         ledger = SequenceTokenLedger(
             num_layers=int(model_config.num_layers),
@@ -518,6 +519,7 @@ class LingBotGenerationEngine:
                     kwargs["cross_attn_first_call"] = False
                     x0 = pipeline._convert_flow_pred_to_x0(flow, current, step, pipeline.scheduler)
                     online.capture_generation_prediction(step_index, x0)
+                    online.generation_probe(step_index=step_index, noisy=current, step=step, kwargs=kwargs)
                     if step_index < len(timesteps) - 1:
                         current = pipeline.scheduler.add_noise(
                             x0,

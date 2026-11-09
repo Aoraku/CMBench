@@ -1,0 +1,16 @@
+# Rebuttal baselines: implementation notes
+
+All six methods run inside the same LingBot World v2 runtime as DeCoPrune, with the same
+sink chunk, the same dense recent window (`local_window_chunks=1`), the same RoPE
+re-indexing at the context/generation boundary, and the same seqPR accounting
+(historical KV token positions visible to each head, Eq. 4 of the paper).
+Budgets are set to match DeCoPrune's pruning ratio on CMBench (≈85%).
+
+| Method | Source | What is faithful | Deviations (and why) |
+|---|---|---|---|
+| `contextfree` | control for reviewer 9oYy | Same probe timestep, MSE score, threshold rule, lifecycle and compaction as DeCoPrune | The probe prediction is computed with an empty KV cache (no sink, no history). Online generation therefore needs one extra no-cache model call per chunk. |
+| `snapkv` | SnapKV / H2O | Softmax attention mass from an observation set of queries (256 evenly spaced rows of each clean pass); pooling before top-k | Pooling is 2-D (kernel 3) on each frame's token grid instead of 1-D over the text sequence; selection happens when a chunk leaves the recent window, with a fixed per-chunk keep ratio. Selection is per layer, scores averaged over heads. |
+| `focused_forcing` | Cai et al., 2026 (code not released) | Frame-level sparse attention; score `λ·z(A) + (1-λ)·z(D)` with λ=0.5; A = pooled q·k frame score (Eq. 8); D = −cosine to the mean historical key (Eq. 9–10); per query frame and per head top-k; reserved sink/recent frames count toward the budget; full history stays stored | Head budgets are uniform (the paper's offline head-importance calibration needs one masked rollout per layer-head pair, 1,600 rollouts for LingBot). The diversity term uses frame-mean keys. |
+| `worldkv` | Yi et al., 2026 | Compression: anchor = first frame of each chunk, keep anchor + the 25% least anchor-similar non-anchor tokens (Eq. 5), per layer; retrieval of stored chunks into a sink + retrieved + recent window by camera pose (geodesic rotation distance) | CMBench contexts have no recorded poses, so context-frame rotations are recovered from the video (SIFT + homography, chained per latent frame); when fewer than half the pairs are robust the case falls back to the paper's query-based retrieval (attention of current queries to each stored chunk's mean key). Translation is ignored. |
+| `future_forcing` | Luo et al., 2026 (code not released) | Proxy = mean pre-RoPE query of the latest chunk rotated to the next Δ=1…6 positions; score = 0.5·future + 0.5·historical attention; evicted tokens merged into the most similar kept token when the cosine of their future-query projections ≥ 0.95, value weighted by future attention | Merging is restricted to tokens of the same chunk; future attention uses 256 sampled proxy rows. |
+| `densitykv` | Zhao et al., 2026 (public code) | Bank update ported from `DensityLimitedKVBank.update`: candidates ordered by max relative density increase, longest feasible prefix under the growth limit (2.0), growth violators then densest entries evicted on overflow, Soft-Riesz kernel (p=2, ε=1, scale=8) on post-RoPE keys | Densities are averaged over heads so that all heads of a layer share one token set (the runtime's dense bank has one token identity per layer). |

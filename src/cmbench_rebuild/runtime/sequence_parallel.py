@@ -7,6 +7,19 @@ from typing import Any
 from .cache_attention import cached_attention
 
 
+def _rebuttal_aux(kv_cache: Any, pre_rope_query: Any, *, grid_sizes: Any, freqs: Any, start_frame: int, frame_seqlen: int) -> dict[str, Any] | None:
+    """Future Forcing needs the pre-RoPE query of the clean pass; build its proxy here."""
+    capture = kv_cache.get("rb_capture") if hasattr(kv_cache, "get") else None
+    if not capture or not capture.get("future_horizon"):
+        return None
+    from .rebuttal_policies import future_query_proxy
+
+    return {"future_queries": future_query_proxy(
+        pre_rope_query, grid_sizes=grid_sizes, freqs=freqs, start_frame=start_frame,
+        frame_tokens=frame_seqlen, horizon=int(capture["future_horizon"]), samples=int(capture["samples"]),
+    )}
+
+
 def policy_attn_forward_causal(
     self: Any,
     x: Any,
@@ -35,6 +48,7 @@ def policy_attn_forward_causal(
     if frame_seqlen is None:
         frame_seqlen = int(math.prod(grid_sizes[0][1:]).item())
     start_frame = int(current_start) // int(frame_seqlen)
+    aux = _rebuttal_aux(kv_cache, query[:, :valid_sequence], grid_sizes=grid_sizes, freqs=freqs, start_frame=start_frame, frame_seqlen=int(frame_seqlen))
     query = causal_rope_apply(query, grid_sizes, freqs, start_frame=start_frame).type_as(value)[:, :valid_sequence]
     key = causal_rope_apply(key, grid_sizes, freqs, start_frame=start_frame).type_as(value)[:, :valid_sequence]
     value = value[:, :valid_sequence]
@@ -49,6 +63,7 @@ def policy_attn_forward_causal(
         sink_size=int(self.sink_size),
         max_attention_size=int(max_attention_size),
         attender=attention,
+        aux=aux,
     )
     return self.o(attended.flatten(2))
 
@@ -88,6 +103,7 @@ def sp_policy_attn_forward_causal(
     if frame_seqlen is None:
         frame_seqlen = int(math.prod(grid_sizes[0][1:]).item())
     start_frame = int(current_start) // int(frame_seqlen)
+    aux = _rebuttal_aux(kv_cache, query[:, :valid_sequence], grid_sizes=grid_sizes, freqs=freqs, start_frame=start_frame, frame_seqlen=int(frame_seqlen))
     query = causal_rope_apply(query, grid_sizes, freqs, start_frame=start_frame).type_as(value)[:, :valid_sequence]
     key = causal_rope_apply(key, grid_sizes, freqs, start_frame=start_frame).type_as(value)[:, :valid_sequence]
     value = value[:, :valid_sequence]
@@ -102,6 +118,7 @@ def sp_policy_attn_forward_causal(
         sink_size=int(self.sink_size),
         max_attention_size=int(max_attention_size),
         attender=flash_attention,
+        aux=aux,
     )
     padding = padded_sequence - valid_sequence
     if padding > 0:
