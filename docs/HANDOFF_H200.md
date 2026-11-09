@@ -95,7 +95,7 @@ Everything is resumable: re-running the same command skips tasks whose
 | Method | H200 (1 GPU) | B300 (1 GPU) |
 |---|---|---|
 | DeCoPrune | — | 5.5 min |
-| FullKV | — | ~18 min |
+| FullKV | — | ~5 min (generation 293 s) |
 | FutureForcing | 11–12 min | |
 | ContextFree | 15 min (extra no-cache probe per chunk) | 6 min |
 | WorldKV | 22 min (retrieval gathers stored chunks every call) | |
