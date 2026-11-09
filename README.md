@@ -107,7 +107,7 @@ Camera controls are not part of the public dataset. The LingBot runtime uses its
 | FutureForcing | `future_forcing` | Future-query-proxy scoring with value merging |
 | DensityKV | `densitykv` | Bounded bank with Soft-Riesz density-growth admission |
 
-The last six methods were added for the rebuttal experiments; implementation notes and every deviation from the original papers are listed in [`docs/rebuttal_methods.md`](docs/rebuttal_methods.md).
+**Running on H200: see [`docs/HANDOFF_H200.md`](docs/HANDOFF_H200.md).** The last six methods were added for the rebuttal experiments; implementation notes and every deviation from the original papers are listed in [`docs/rebuttal_methods.md`](docs/rebuttal_methods.md).
 
 Start from [`configs/decoprune.json`](configs/decoprune.json). Set `checkpoint` to your model directory and `request_file` to the prepared JSONL. The example specifies probe index `2` for both the observed prefix and generated continuation, and threshold `0.10`.
 
