@@ -49,7 +49,7 @@ PyTorch SDPA automatically.
 | FocusedForcing (new) | `focused_forcing` | `frame_budget=36` | 0.856 |
 | WorldKV (new) | `worldkv` | `retrieved_chunks=14`, camera retrieval | 0.854 |
 | FutureForcing (new) | `future_forcing` | `keep_ratio=0.10` | 0.857 |
-| DensityKV (new) | `densitykv` | `max_entries=37500` per layer | ≈0.855 (content dependent — check the first tasks) |
+| DensityKV (new) | `densitykv` | **being recalibrated — start this method last** | full-context check gave 0.92 with `growth_limit=2.0` (the bank never fills); a new default is being pushed |
 
 All defaults are already calibrated: no `--method-params` are needed. To change a
 budget, pass e.g. `--method-params '{"snapkv": {"keep_ratio": 0.12}}'` and check the
