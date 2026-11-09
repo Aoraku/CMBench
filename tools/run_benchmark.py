@@ -108,14 +108,18 @@ def evaluate(args, method: str, seed: int, case_dirs: list[Path]) -> None:
             (eval_root / "done" / f"{case_id}.json").write_text(json.dumps(result, indent=2, default=str) + "\n")
 
 
-def _per_frame_topk(eval_case: dict, k: int) -> float | None:
-    """Mean of the top-k per-frame DINO scores (robustness check for the max aggregation)."""
-    summary = eval_case.get("summary", {})
-    frames = summary.get("per_frame_scores") or summary.get("frame_scores")
-    if not frames:
+def _per_frame_topk(eval_dir: Path, case_id: str, k: int) -> float | None:
+    """Mean of the top-k per-frame DINO scores of the primary reference (robustness check for max)."""
+    files = sorted(eval_dir.glob(f"batch*/per_video/*/{case_id}/*/*/frame_scores.jsonl"))
+    if not files:
         return None
-    values = sorted((float(v) for v in frames if v is not None and math.isfinite(float(v))), reverse=True)
-    return sum(values[:k]) / max(1, len(values[:k])) if values else 0.0
+    values = []
+    for line in files[-1].read_text().splitlines():
+        row = json.loads(line) if line.strip() else {}
+        if row.get("ref_role", "primary") == "primary" and row.get("dino_score") is not None:
+            values.append(float(row["dino_score"]))
+    values = sorted((v for v in values if math.isfinite(v)), reverse=True)[:k]
+    return sum(values) / len(values) if values else 0.0
 
 
 def bootstrap_ci(values: list[float], *, resamples: int = 10000, seed: int = 0) -> tuple[float, float]:
@@ -136,13 +140,13 @@ def summarize(args, methods: list[str], seeds: list[int], cases: list[str]) -> N
                 done = args.output_root / "eval" / method / f"seed{seed}" / "done" / f"{case_id}.json"
                 meta = json.loads((run / "metadata.json").read_text()) if (run / "metadata.json").is_file() else {}
                 result = json.loads(done.read_text()) if done.is_file() else {}
-                seqpr = (meta.get("seq_pr_metrics") or {})
+                seqpr = json.loads((run / "seq_pr_metrics.json").read_text()) if (run / "seq_pr_metrics.json").is_file() else {}
                 rows.append({
                     "method": method, "seed": seed, "case_id": case_id,
                     "dino": result.get("dino_score"),
-                    "dino_top5": _per_frame_topk(result, 5) if result else None,
-                    "seq_pr": seqpr.get("sequence_prune_ratio", seqpr.get("seq_pr")),
-                    "fps": (meta.get("resources") or {}).get("decoded_frame_fps_nominal"),
+                    "dino_top5": _per_frame_topk(done.parent.parent, case_id, 5) if result else None,
+                    "seq_pr": seqpr.get("seqPR"),
+                    "fps": meta.get("generation_fps"),
                 })
     out = args.output_root / "summary"
     out.mkdir(parents=True, exist_ok=True)
@@ -150,15 +154,16 @@ def summarize(args, methods: list[str], seeds: list[int], cases: list[str]) -> N
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["method"])
         writer.writeheader()
         writer.writerows(rows)
-    lines = ["| Method | N | DINO | 95% CI | DINO top-5 | seqPR |", "|---|---|---|---|---|---|"]
+    lines = ["| Method | N | DINO | 95% CI | DINO top-5 | seqPR | FPS |", "|---|---|---|---|---|---|---|"]
     for method in methods:
         scores = [r["dino"] for r in rows if r["method"] == method and r["dino"] is not None]
         top5 = [r["dino_top5"] for r in rows if r["method"] == method and r["dino_top5"] is not None]
         prs = [r["seq_pr"] for r in rows if r["method"] == method and r["seq_pr"] is not None]
+        fps = [r["fps"] for r in rows if r["method"] == method and r["fps"] is not None]
         mean = sum(scores) / len(scores) if scores else float("nan")
         lo, hi = bootstrap_ci(scores)
         lines.append(f"| {method} | {len(scores)} | {mean:.4f} | [{lo:.4f}, {hi:.4f}] | "
-                     f"{(sum(top5) / len(top5)) if top5 else float('nan'):.4f} | {(sum(prs) / len(prs)) if prs else float('nan'):.4f} |")
+                     f"{(sum(top5) / len(top5)) if top5 else float('nan'):.4f} | {(sum(prs) / len(prs)) if prs else float('nan'):.4f} | {(sum(fps) / len(fps)) if fps else float('nan'):.2f} |")
     (out / "table.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
 
