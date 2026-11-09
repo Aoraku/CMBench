@@ -445,8 +445,6 @@ class OnlinePolicyRuntime:
 
     def begin_generation(self) -> None:
         """Discard context-only consistency records after a shared q0 selection."""
-        if self.name == "nocontext":
-            self._drop_source_range(0, int(self.geometry.context_frames) * int(self.geometry.frame_tokens))
         if self.rebuttal is not None and self.rebuttal.visible is not None and self._rope_plan is not None:
             self.rebuttal.visible.on_rope_reindex(plan=self._rope_plan, freqs=self.pipeline.model.freqs)
         if self.matched_context_policy != "patchification_q0" or not self.is_consistency:
@@ -539,10 +537,6 @@ class OnlinePolicyRuntime:
                 self.records.append(ConsistencyRecord(int(chunk_idx), ids, scores.detach(), phase, reference_scores=reference))
         if phase == "generation" and self._append_only_generation:
             return
-        if self.name == "nocontext" and phase == "context" and int(chunk_idx) > 0:
-            # Keep only the newest context chunk while replaying the context.
-            tokens = int(self.geometry.tokens_per_chunk)
-            self._drop_source_range((int(chunk_idx) - 1) * tokens, int(chunk_idx) * tokens)
         if self.rebuttal is not None:
             self.rebuttal.after_clean(int(chunk_idx), phase=phase)
         if self.name == "forcingkv":

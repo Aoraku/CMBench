@@ -1,9 +1,9 @@
-"""No-context lower bound: generation keeps none of the observed context's KV.
+"""No-context lower bound: no prefill of the observed context.
 
-The context is replayed as usual (keeping only the most recent chunk so the replay
-stays causal and cheap), and when generation starts every context token is dropped,
-including the sink.  Generated chunks keep their own KV densely.  seqPR is therefore
-close to 1 and the score shows how much the benchmark depends on remembered context.
+Only the final observed chunk (the frames the continuation starts from) is written to
+the KV cache; the rest of the context is never encoded into memory.  Generation then
+starts from that chunk and the text prompt, and generated chunks are cached as usual
+(streaming).  seqPR is therefore close to 1.
 """
 from .spec import MethodSpec
 

@@ -329,6 +329,10 @@ class LingBotGenerationEngine:
         emit({"event": "context_replay_started", "context_latent_frames": context_frames, "frame_tokens": frame_tokens})
         with torch.no_grad(), torch.amp.autocast("cuda", dtype=pipeline.param_dtype):
             for frame_start in range(0, context_frames, chunk):
+                if policy.name == "nocontext" and frame_start + chunk < context_frames:
+                    # No prefill: only the final observed chunk (the frames the continuation
+                    # starts from) is written to the cache.
+                    continue
                 if growth is not None:
                     growth.ensure(geometry.tokens_per_chunk, emit)
                 chunk_index = frame_start // chunk
