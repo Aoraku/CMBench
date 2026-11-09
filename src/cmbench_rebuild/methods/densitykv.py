@@ -20,7 +20,7 @@ SPEC = MethodSpec(
         "density_scale": 8.0,
         "riesz_power": 2.0,
         "riesz_eps": 1.0,
-        "growth_limit": 2.0,
+        "growth_limit": 8.0,
         "local_window_chunks": 1,
         "work_chunk_size": 512,
     },

@@ -15,7 +15,7 @@ frames, 1,560 tokens per frame) and gives the exact seqPR of every content-indep
 | `future_forcing` | `keep_ratio=0.10` | 0.857 |
 | `worldkv` | `retrieved_chunks=14` | 0.854 |
 | `focused_forcing` | `frame_budget=36` frames | 0.856 |
-| `densitykv` | `max_entries=37500` per layer | content dependent; ≈0.855 once the bank is full |
+| `densitykv` | `max_entries=37500`, `growth_limit=8.0` | 0.856 measured at full context (the release's `growth_limit=2.0` stops admission early on LingBot keys: bank 12.8k tokens, PR 0.92; 4.0 gives 0.886) |
 
 Evaluation: the OWL-ViT / SAM 2 / DINOv2 evaluator was frozen with transformers 5.12.1; run it from that
 environment (`--eval-python`).

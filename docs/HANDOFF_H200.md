@@ -49,7 +49,7 @@ PyTorch SDPA automatically.
 | FocusedForcing (new) | `focused_forcing` | `frame_budget=36` | 0.856 |
 | WorldKV (new) | `worldkv` | `retrieved_chunks=14`, camera retrieval | 0.854 |
 | FutureForcing (new) | `future_forcing` | `keep_ratio=0.10` | 0.857 |
-| DensityKV (new) | `densitykv` | **being recalibrated — start this method last** | full-context check gave 0.92 with `growth_limit=2.0` (the bank never fills); a new default is being pushed |
+| DensityKV (new) | `densitykv` | `max_entries=37500` per layer, `growth_limit=8.0` | 0.856 (measured; with the paper's 2.0 the bank never fills and PR is 0.92) |
 | NoContext (Table 3 lower bound, new) — **please include** | `nocontext` | drops every context token (incl. sink) when generation starts; generated chunks kept | 0.976 (measured) |
 
 All defaults are already calibrated: no `--method-params` are needed. To change a
